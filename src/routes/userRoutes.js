@@ -6,15 +6,15 @@ import {
   updateUser,
   deleteUser,
 } from '../controllers/userController.js';
-import { verifyAuththentication } from '../middlewares/verifyAuthentication.js';
+import { verifyAuthentication} from '../middlewares/verifyAuthentication.js';
 import { verifyRoles } from '../middlewares/verifyAuthorization.js';
 
 
 const router = express.Router();
 
 
-router.get('/',verifyAuththentication,verifyRoles("admin"), getAllUsers);
-router.get('/profile',verifyAuththentication,(req, res)=>{
+router.get('/',verifyAuthentication,verifyRoles("user"), getAllUsers);
+router.get('/profile',verifyAuthentication,(req, res)=>{
   res.status(200).json({succes:true, message:"you are authenticated you can access"});
 })
 router.get('/:id', getUser);
