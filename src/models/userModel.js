@@ -21,6 +21,16 @@ export const getUserById = async (id) => {
   }
 };
 
+export const getUserByEmail = async (email) => {
+  try {
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    return result.rows[0];
+  } catch (error) {
+    console.log("error while fetching user data by ID", error);
+    throw error;
+  }
+};
+
 export const createUser = async (name, email, password) => {
   try {
     const hasPassword = await bcrypt.hash(password, 10);
