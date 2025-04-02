@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export const getUsers = async () => {
   try {
@@ -81,3 +82,29 @@ export const deleteUser = async (id) => {
     throw error;
   }
 };
+
+export const generateAccessToken = (id, role)=>{
+  return  jwt.sign({id, role}, process.env.ACCESS_TOKEN_SECRET, {expiresIn:process.env.ACCESS_TOKEN_EXPIRY});
+  
+}
+
+export const  generateRefreshToken = (id)=>{
+    return jwt.sign({id},process.env.REFRESH_TOKEN_SECRET, {expiresIn:process.env.REFRESH_TOKEN_EXPIRY});
+}
+
+
+export const generateAccessAndRefreshToken = async(id, role)=>{
+      const accessToken = generateAccessToken(id, role);
+      const refreshToken = generateRefreshToken(id);
+      const result = await pool.query("UPDATE users SET refrestoken = $1 WHERE id = $2 RETURNING*",[refreshToken, id]);
+      // console.log(result);
+      console.log("access token",accessToken);
+      console.log("refreshToken", refreshToken);
+
+  return [accessToken, refreshToken];
+
+}
+
+export const makeNullRefreshToken =async (id)=>{
+  const result = await pool.query("UPDATE users SET refrestoken = NULL WHERE id = $1",[id]);
+}

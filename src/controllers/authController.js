@@ -1,8 +1,12 @@
-import { createUser, getUserByEmail } from "../models/userModel.js";
+import {
+  createUser,
+  getUserByEmail,
+  getUserById,
+} from "../models/userModel.js";
 import bcrypt from "bcrypt";
+import { generateAccessAndRefreshToken } from "../models/userModel.js";
 import jwt from "jsonwebtoken";
-
-export const manageSession = new Map();
+import { makeNullRefreshToken } from "../models/userModel.js";
 
 export const register = async (req, res) => {
   console.log(req.body);
@@ -47,8 +51,7 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    console.log("abc");
-    console.log(req.body);
+    // console.log(req.body);
     const { email, password } = req.body;
     const user = await getUserByEmail(email);
 
@@ -65,19 +68,23 @@ export const login = async (req, res) => {
         .json({ success: false, message: "invalid credentials" });
     }
 
-    delete user.password;
-
-    const token = jwt.sign(
-      { userId: user.id, name: user.name, role:user.role},
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+    const [accessToken, refreshToken] = await generateAccessAndRefreshToken(
+      user.id,
+      user.role
     );
 
-    console.log(token);
+    // console.log("accesss token in authControl", value);
 
+    //setting tokens in cookies
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
     return res
       .status(200)
-      .json({ success: true, message: "login successfull", token });
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json({ success: true, message: "login successfull", accessToken, refreshToken });
   } catch (error) {
     console.error("login error", error);
     return res.status(500).json({
@@ -86,3 +93,58 @@ export const login = async (req, res) => {
     });
   }
 };
+
+export const refreshAccessToken = async (req, res) => {
+  try {
+    const incomingRefreshToken = req.cookies?.refreshToken;
+    if (!incomingRefreshToken) {
+      throw new Error("Unauthorized for refresh token");
+    }
+    //decode tokkekn
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    console.log("refresh token decode value", decodedToken);
+
+    const user = await getUserById(decodedToken.id);
+
+    if (incomingRefreshToken != user.refrestoken) {
+      throw new Error("refresh token expired");
+    }
+
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user.id, user.role);
+
+    return res.status(200).json({success:true, message:"token refreshed!", accessToken, refreshToken});
+
+  } catch (error) {
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: error.message || "invalid refresh Token",
+      });
+  }
+};
+
+
+export const logoutUser =async (req, res)=>{
+
+try {
+  await makeNullRefreshToken(req.user.id);
+  
+  const options = {
+    httpOnly:true,
+    secure:true
+  }
+
+res.status(200)
+.clearCookie("accessToken",options)
+.clearCookie("refreshToken", options)
+.json({success:true, message:"user logged out"});
+  
+} catch (error) {
+  return res.status(500).json({success:false, message:"internal server error"});
+}
+
+}
