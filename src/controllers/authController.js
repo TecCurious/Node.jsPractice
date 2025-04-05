@@ -9,12 +9,13 @@ import jwt from "jsonwebtoken";
 import { makeNullRefreshToken } from "../models/userModel.js";
 
 export const register = async (req, res) => {
-  console.log(req.body);
+  
   try {
     const { name, email, password, role } = req.body;
 
     //validation
     if ((!name || !email || !password, !role)) {
+      console.log(name);
       return res.status(400).json({
         success: false,
         message: "All fields are required",
@@ -75,6 +76,7 @@ export const login = async (req, res) => {
 
     // console.log("accesss token in authControl", value);
 
+    delete user.password;
     //setting tokens in cookies
     const options = {
       httpOnly: true,
@@ -84,7 +86,7 @@ export const login = async (req, res) => {
       .status(200)
       .cookie("accessToken", accessToken, options)
       .cookie("refreshToken", refreshToken, options)
-      .json({ success: true, message: "login successfull", accessToken, refreshToken });
+      .json({ success: true, message: "login successfull", user});
   } catch (error) {
     console.error("login error", error);
     return res.status(500).json({
@@ -101,21 +103,30 @@ export const refreshAccessToken = async (req, res) => {
       throw new Error("Unauthorized for refresh token");
     }
     //decode tokkekn
+    console.log("backend refresh token");
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
-    console.log("refresh token decode value", decodedToken);
+    console.log("refresh token", incomingRefreshToken);
 
     const user = await getUserById(decodedToken.id);
-
+    console.log("user",user);
     if (incomingRefreshToken != user.refrestoken) {
       throw new Error("refresh token expired");
     }
 
-    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user.id, user.role);
+    const [accessToken, refreshToken] = await generateAccessAndRefreshToken(user.id, user.role);
 
-    return res.status(200).json({success:true, message:"token refreshed!", accessToken, refreshToken});
+    const options = {
+      httpOnly:true,
+      secure:true
+    }
+
+    return res.status(200)
+    .cookie("accessToken",accessToken,options)
+    .cookie("refreshToken",refreshToken,options)
+    .json({success:true, message:"token refreshed!"});
 
   } catch (error) {
     return res

@@ -96,6 +96,7 @@ export const  generateRefreshToken = (id)=>{
 export const generateAccessAndRefreshToken = async(id, role)=>{
       const accessToken = generateAccessToken(id, role);
       const refreshToken = generateRefreshToken(id);
+      console.log("updating refresh token", refreshToken);
       const result = await pool.query("UPDATE users SET refrestoken = $1 WHERE id = $2 RETURNING*",[refreshToken, id]);
       // console.log(result);
       console.log("access token",accessToken);
